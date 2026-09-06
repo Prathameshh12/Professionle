@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #15181d;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3a404b #1e222a;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #1e222a;
+}
+::-webkit-scrollbar-thumb {
+  background: #3a404b;
+  border-radius: 4px;
+}
+
+:focus-visible {
+  outline: 2px solid #c9a876;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Subtle desk-lamp vignette behind the whole app, like a single overhead
+   light in an otherwise dark interview room. */
+.vignette {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% -10%, rgba(201, 168, 118, 0.10), transparent 60%),
+    #15181d;
+}
+
+.stamp {
+  transform: rotate(-3deg);
+}

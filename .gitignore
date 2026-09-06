@@ -1,0 +1,22 @@
+# dependencies
+/node_modules
+
+# next.js build output
+/.next/
+/out/
+*.tsbuildinfo
+next-env.d.ts
+
+# environment files — these hold real secrets, never commit them
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+
+# vercel
+.vercel
+
+# misc
+.DS_Store
+npm-debug.log*
