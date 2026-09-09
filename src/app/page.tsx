@@ -39,7 +39,7 @@ export default function GamePage() {
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [transcript]);
+    }, [transcript, asking]);
 
   async function startGame(difficulty?: Difficulty) {
     setStatus("starting");
@@ -146,6 +146,7 @@ export default function GamePage() {
           {transcript.map((entry, i) => (
             <TranscriptRow key={i} entry={entry} />
           ))}
+          {asking && <ThinkingIndicator />}
           {gameOver && revealedTitle && (
             <div className="border-t border-wire pt-4 mt-4">
               <p className="font-case text-manila text-sm mb-1">
@@ -197,6 +198,19 @@ export default function GamePage() {
         </button>
       </form>
     </main>
+  );
+}
+
+function ThinkingIndicator() {
+  return (
+    <div className="flex items-center gap-2 text-paperDim/70">
+      <span className="font-case text-xs">THINKING</span>
+      <span className="flex gap-1">
+        <span className="thinking-dot w-1.5 h-1.5 rounded-full bg-paperDim/70 inline-block" />
+        <span className="thinking-dot w-1.5 h-1.5 rounded-full bg-paperDim/70 inline-block" />
+        <span className="thinking-dot w-1.5 h-1.5 rounded-full bg-paperDim/70 inline-block" />
+      </span>
+    </div>
   );
 }
 
