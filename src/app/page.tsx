@@ -114,6 +114,17 @@ export default function GamePage() {
     }
   }
 
+  /** Sends the player back to the difficulty-select screen instead of starting a new game directly. */
+  function backToMenu() {
+    setSessionId(null);
+    setStatus("idle");
+    setTranscript([]);
+    setNoCount(0);
+    setTotalQuestions(0);
+    setRevealedTitle(null);
+    setError(null);
+  }
+
   if (status === "idle" || status === "starting") {
     return <StartScreen onStart={startGame} loading={status === "starting"} error={error} />;
   }
@@ -155,12 +166,20 @@ export default function GamePage() {
               <p className="text-2xl">
                 The job was: <span className="font-semibold text-paper">{revealedTitle}</span>
               </p>
-              <button
-                onClick={() => startGame()}
-                className="mt-4 font-case text-sm border border-manila text-manila px-4 py-2 hover:bg-manila hover:text-ink transition-colors"
-              >
-                OPEN A NEW CASE
-              </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  onClick={() => startGame()}
+                  className="font-case text-sm border border-manila text-manila px-4 py-2 hover:bg-manila hover:text-ink transition-colors"
+                >
+                  PLAY AGAIN (RANDOM)
+                </button>
+                <button
+                  onClick={backToMenu}
+                  className="font-case text-sm border border-wire text-paperDim px-4 py-2 hover:border-manila hover:text-manila transition-colors"
+                >
+                  CHOOSE DIFFICULTY
+                </button>
+              </div>
             </div>
           )}
         </div>
