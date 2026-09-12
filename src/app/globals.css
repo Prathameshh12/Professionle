@@ -50,6 +50,37 @@ body {
   transform: rotate(-3deg);
 }
 
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.enter {
+  animation: enter 500ms ease-out both;
+}
+
+@keyframes logo-pulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.85;
+  }
+}
+
+.logo-pulse {
+  animation: logo-pulse 1.6s ease-in-out infinite;
+}
+
 /* Thinking indicator shown in the transcript while a question is being answered */
 @keyframes thinking-pulse {
   0%,

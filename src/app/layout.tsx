@@ -17,6 +17,9 @@ const bodyFont = Source_Serif_4({
 export const metadata: Metadata = {
   title: "Professionle - Guess the Profession",
   description: "Ask yes/no questions, crack the case, name the job.",
+  icons: {
+    icon: "/icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
