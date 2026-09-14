@@ -31,9 +31,6 @@ export default async function OpengraphImage() {
             height={72}
             style={{ width: 72, height: 72, borderRadius: 16, marginRight: 24 }}
           />
-          <div style={{ display: "flex", color: "#C9A876", fontSize: 30, letterSpacing: 4 }}>
-            CASE FILE
-          </div>
         </div>
         <div
           style={{
@@ -47,8 +44,7 @@ export default async function OpengraphImage() {
           Professionle
         </div>
         <div style={{ display: "flex", color: "#C9BFA9", fontSize: 34, maxWidth: 850 }}>
-          Someone&apos;s been assigned a job. Ask yes-or-no questions until you work out what it
-          is.
+          Guess the job. Yes-or-no questions only. 10 nos and you're out, hints drop along the way.
         </div>
       </div>
     ),

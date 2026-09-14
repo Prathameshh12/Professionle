@@ -17,7 +17,7 @@ const bodyFont = Source_Serif_4({
 export const metadata: Metadata = {
   metadataBase: new URL("https://professionle.vercel.app"), // update if your domain ever changes
   title: "Professionle - Guess the Profession",
-  description: "Ask yes/no questions, crack the case, name the job.",
+  description: "Guess the job. Yes-or-no questions only. 10 nos and you're out, hints drop along the way.",
   icons: {
     icon: "/icon.png",
   },
