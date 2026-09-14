@@ -1,7 +1,16 @@
 import type { Answer } from "@/types";
-import { buildAnswerPrompt, buildGuessClassifierPrompt } from "./prompts";
+import { buildAnswerPrompt, buildGuessClassifierPrompt, buildRoleReversalPrompt } from "./prompts";
 import { LlmHttpError, withRetry } from "./retry";
-import { isValidAnswer, stripJsonFences, type GuessClassification, type LlmProvider, type QuestionHistoryItem } from "./types";
+import {
+  isValidAnswer,
+  isValidMoveType,
+  stripJsonFences,
+  type GuessClassification,
+  type LlmProvider,
+  type QuestionHistoryItem,
+  type RoleReversalMove,
+  type RoleReversalTurn,
+} from "./types";
 
 const GEMINI_MODEL = "gemini-flash-latest";
 const GEMINI_EMBEDDING_MODEL = "gemini-embedding-001";
@@ -62,6 +71,18 @@ export const geminiProvider: LlmProvider = {
         is_guess: Boolean(parsed.is_guess),
         guessed_job: typeof parsed.guessed_job === "string" ? parsed.guessed_job : null,
       };
+    });
+  },
+
+  async nextRoleReversalMove(history: RoleReversalTurn[], turnsRemaining: number): Promise<RoleReversalMove> {
+    return withRetry(async () => {
+      const prompt = buildRoleReversalPrompt(history, turnsRemaining);
+      const raw = await generate(prompt);
+      const parsed = JSON.parse(stripJsonFences(raw));
+      if (!isValidMoveType(parsed.type) || typeof parsed.text !== "string" || !parsed.text.trim()) {
+        throw new Error(`Gemini returned an invalid role-reversal move: ${JSON.stringify(parsed)}`);
+      }
+      return { type: parsed.type, text: parsed.text.trim() };
     });
   },
 };

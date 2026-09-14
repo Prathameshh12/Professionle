@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { TallyCounter } from "@/components/TallyCounter";
 import { Logo } from "@/components/logo";
@@ -428,6 +429,15 @@ function StartScreen({
           >
             Or pick a random difficulty
           </button>
+
+          <div className="mt-3">
+            <Link
+              href="/special-cases"
+              className="text-paperDim text-sm underline decoration-wire underline-offset-4 hover:text-manila hover:decoration-manila transition-colors"
+            >
+              Special Cases <span className="font-sans">→</span>
+            </Link>
+          </div>
 
           {error && <p className="text-alert text-sm mt-4">{error}</p>}
         </div>

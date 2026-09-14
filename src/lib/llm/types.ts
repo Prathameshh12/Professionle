@@ -10,6 +10,18 @@ export interface GuessClassification {
   guessed_job: string | null;
 }
 
+/** One exchange in a Role Reversal round: either the system asked a yes/no
+ *  question and got an answer, or the system guessed and was told it was wrong. */
+export type RoleReversalTurn =
+  | { kind: "qa"; question: string; answer: Answer }
+  | { kind: "wrong_guess"; guess: string };
+
+/** The system's next move in a Role Reversal round. */
+export interface RoleReversalMove {
+  type: "question" | "guess";
+  text: string;
+}
+
 /**
  * A swappable LLM backend. Anything implementing this interface can be
  * dropped into `src/lib/llm/index.ts` without touching game logic
@@ -26,12 +38,19 @@ export interface LlmProvider {
 
   /** Cheap classification: is this message actually a guess at the job title? */
   classifyGuess(question: string): Promise<GuessClassification>;
+
+  /** Role Reversal: given the conversation so far, ask the next question or make a guess. */
+  nextRoleReversalMove(history: RoleReversalTurn[], turnsRemaining: number): Promise<RoleReversalMove>;
 }
 
 export const VALID_ANSWERS: Answer[] = ["yes", "no", "sometimes", "not_really", "irrelevant"];
 
 export function isValidAnswer(value: unknown): value is Answer {
   return typeof value === "string" && (VALID_ANSWERS as string[]).includes(value);
+}
+
+export function isValidMoveType(value: unknown): value is RoleReversalMove["type"] {
+  return value === "question" || value === "guess";
 }
 
 /** Strips markdown code fences some models wrap JSON in, despite instructions not to. */

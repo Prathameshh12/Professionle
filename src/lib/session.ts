@@ -1,5 +1,6 @@
 import { pool } from "./db";
 import type { Difficulty, GameSession, Job } from "@/types";
+import { CREATOR_TAG } from "./constants";
 
 function mapSession(row: any): GameSession {
   return {
@@ -34,12 +35,30 @@ export async function startSession(
   userId?: string
 ): Promise<GameSession> {
   const jobQuery = difficulty
-    ? `select id from jobs where difficulty = $1 order by random() limit 1`
-    : `select id from jobs order by random() limit 1`;
-  const jobParams = difficulty ? [difficulty] : [];
+    ? `select id from jobs where difficulty = $1 and not ($2 = any(tags)) order by random() limit 1`
+    : `select id from jobs where not ($1 = any(tags)) order by random() limit 1`;
+  const jobParams = difficulty ? [difficulty, CREATOR_TAG] : [CREATOR_TAG];
   const { rows: jobRows } = await pool.query(jobQuery, jobParams);
   if (jobRows.length === 0) {
     throw new Error("No jobs available in the database. Run `npm run seed` first.");
+  }
+  const jobId = jobRows[0].id;
+
+  const { rows } = await pool.query(
+    `insert into game_sessions (job_id, user_id) values ($1, $2) returning *`,
+    [jobId, userId ?? null]
+  );
+  return mapSession(rows[0]);
+}
+
+/** Starts a session pinned to the single creator-profile job, bypassing the random draw. */
+export async function startCreatorSession(userId?: string): Promise<GameSession> {
+  const { rows: jobRows } = await pool.query(
+    `select id from jobs where $1 = any(tags) limit 1`,
+    [CREATOR_TAG]
+  );
+  if (jobRows.length === 0) {
+    throw new Error("Creator profile not seeded yet. Run `npm run seed:creator` first.");
   }
   const jobId = jobRows[0].id;
 
