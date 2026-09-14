@@ -24,7 +24,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Professionle",
     description:
-      "Someone's been assigned a job. Ask yes-or-no questions until you work out what it is.",
+      "Guess the job. Yes-or-no questions only. 10 nos and you're out, hints drop along the way.",
     siteName: "Professionle",
     type: "website",
   },
@@ -32,9 +32,10 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Professionle",
     description:
-      "Someone's been assigned a job. Ask yes-or-no questions until you work out what it is.",
+      "Guess the job. Yes-or-no questions only. 10 nos and you're out, hints drop along the way.",
   },
 };
+
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

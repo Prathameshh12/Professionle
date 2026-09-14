@@ -403,7 +403,7 @@ function StartScreen({
           <Logo size={48} />
           <h1 className="font-case text-4xl md:text-5xl leading-tight mb-4 mt-3">Professionle</h1>
           <p className="text-paperDim text-lg leading-relaxed mb-8 max-w-sm">
-            Someone's been assigned a job. Ask yes-or-no questions until you work out what it is.
+            Guess the job. Yes-or-no questions only. 10 nos and you're out, hints drop along the way.
           </p>
 
           <div className="space-y-2 mb-4">
