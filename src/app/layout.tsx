@@ -21,6 +21,9 @@ export const metadata: Metadata = {
   icons: {
     icon: "/icon.png",
   },
+  verification: {
+    google: "l565jg1fvw5yI83mp3qr7VawGaZHqrtprqJCjA6yqvE",
+  },
   openGraph: {
     title: "Professionle",
     description:
