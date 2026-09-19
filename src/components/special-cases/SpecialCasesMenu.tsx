@@ -21,6 +21,11 @@ const MODES: { key: SpecialCaseMode; label: string; blurb: string }[] = [
     label: "Two Truths",
     blurb: "Two overlapping jobs, one answer.",
   },
+  {
+    key: "interview",
+    label: "Interview",
+    blurb: "Two players, two devices. A real person answers, no AI involved.",
+  },
 ];
 
 export function SpecialCasesMenu({

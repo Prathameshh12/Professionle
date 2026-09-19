@@ -8,8 +8,9 @@ import { RoleReversalMode } from "./RoleReversalMode";
 import { MeetTheCreatorMode } from "./MeetTheCreatorMode";
 import { BlindCaseMode } from "./BlindCaseMode";
 import { TwoTruthsMode } from "./TwoTruthsMode";
+import { InterviewMode } from "./InterviewMode";
 
-export type SpecialCaseMode = "role-reversal" | "meet-the-creator" | "blind-case" | "two-truths";
+export type SpecialCaseMode = "role-reversal" | "meet-the-creator" | "blind-case" | "two-truths" | "interview";
 
 export function SpecialCasesScreen() {
   const [activeMode, setActiveMode] = useState<SpecialCaseMode | null>(null);
@@ -50,6 +51,7 @@ export function SpecialCasesScreen() {
         {activeMode === "meet-the-creator" && <MeetTheCreatorMode />}
         {activeMode === "blind-case" && <BlindCaseMode />}
         {activeMode === "two-truths" && <TwoTruthsMode />}
+        {activeMode === "interview" && <InterviewMode />}
       </div>
     </main>
   );
