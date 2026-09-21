@@ -2,7 +2,6 @@
   "name": "thats-my-job",
   "version": "0.1.0",
   "private": true,
-  
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,12 +10,12 @@
     "seed": "tsx scripts/seed.ts",
     "seed:creator": "tsx scripts/seed-creator.ts"
   },
-  
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "next": "14.2.35",
+    "pg": "^8.12.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "pg": "^8.12.0",
     "uuid": "^9.0.1",
     "zod": "^3.23.8"
   },

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Courier_Prime, Source_Serif_4 } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next"; 
 
 const caseFont = Courier_Prime({
   subsets: ["latin"],
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${caseFont.variable} ${bodyFont.variable} bg-ink text-paper font-body antialiased`}>
         {children}
+        <Analytics />
       </body>
     </html>
   );
