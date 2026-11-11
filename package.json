@@ -8,7 +8,14 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx scripts/seed.ts",
-    "seed:creator": "tsx scripts/seed-creator.ts"
+    "seed:creator": "tsx scripts/seed-creator.ts",
+    "gen:titles": "tsx scripts/generate-jobs.ts titles",
+    "gen:jobs": "tsx scripts/generate-jobs.ts jobs",
+    "gen:review": "tsx scripts/generate-jobs.ts review",
+    "gen:approve": "tsx scripts/generate-jobs.ts approve all",
+    "gen:status": "tsx scripts/generate-jobs.ts status",
+    "seed:generated": "tsx scripts/seed-generated.ts",
+    "seed:generated:dry": "tsx scripts/seed-generated.ts dry"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
