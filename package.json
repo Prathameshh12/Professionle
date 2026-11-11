@@ -17,7 +17,8 @@
     "seed:generated": "tsx scripts/seed-generated.ts",
     "seed:generated:dry": "tsx scripts/seed-generated.ts dry",
     "sync:jobs": "tsx scripts/sync-jobs.ts",
-    "sync:jobs:apply": "tsx scripts/sync-jobs.ts apply"
+    "sync:jobs:apply": "tsx scripts/sync-jobs.ts apply",
+    "warm-daily": "tsx scripts/warm-daily.ts"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",
