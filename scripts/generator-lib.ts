@@ -90,7 +90,9 @@ export function similarity(a: string, b: string): number {
   const nb = normalize(b);
   if (!na || !nb) return 0;
   if (na === nb) return 1;
-  if (na.includes(nb) || nb.includes(na)) return 0.9;
+  const pa = ` ${na} `;
+  const pb = ` ${nb} `;
+  if (pa.includes(pb) || pb.includes(pa)) return 0.9;
   const ta = trigrams(na);
   const tb = trigrams(nb);
   if (ta.size === 0 || tb.size === 0) return 0;
@@ -115,9 +117,16 @@ export function wordCount(s: string): number {
   return s.split(/\s+/).filter(Boolean).length;
 }
 
-/** Collapses whitespace and swaps em/en dashes for commas. */
+/** Collapses whitespace, swaps em/en dashes for commas, and turns the invisible
+ *  non-breaking hyphens and curly quotes the model likes to emit into plain ASCII. */
 export function tidyText(s: string): string {
-  return s.replace(/\s*[\u2014\u2013]\s*/g, ", ").replace(/\s+/g, " ").trim();
+  return s
+    .replace(/[\u2010\u2011\u2012]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201c\u201d]/g, '"')
+    .replace(/\s*[\u2014\u2013]\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 // ---------------------------------------------------------------------------
@@ -192,7 +201,7 @@ export function validateGenerated(raw: unknown, title: string, otherTitles: stri
   if (Array.isArray(r.synonyms)) {
     for (const s of r.synonyms) {
       if (typeof s !== "string") continue;
-      const syn = s.trim().replace(/\s+/g, " ");
+      const syn = tidyText(s);
       if (syn.length < 3 || syn.length > 40) continue;
       if (normalize(syn) === normalize(title)) continue;
       if (findConflict(syn, otherTitles)) continue; // would collide with another job's title
@@ -236,6 +245,15 @@ export function validateGenerated(raw: unknown, title: string, otherTitles: stri
     if (bad.length) errors.push(`faq_answers missing or invalid for question number(s): ${bad.join(", ")}.`);
     else if (faq[0].answer === "yes" && faq[1].answer === "yes") {
       errors.push('A job cannot be "yes" for both indoors and outdoors. Use "sometimes" for one of them.');
+    }
+    const heardOf = faq[FAQ_QUESTIONS.indexOf("Is it a job most people have heard of?")]?.answer;
+    if (faq.length === FAQ_QUESTIONS.length) {
+      if (difficulty === "hard" && heardOf === "yes") {
+        errors.push('A "hard" job is a specialist job, so question "Is it a job most people have heard of?" must be "sometimes" or "not_really".');
+      }
+      if (difficulty === "easy" && (heardOf === "no" || heardOf === "not_really")) {
+        errors.push('An "easy" job is one almost everyone knows, so "heard of" must be "yes" or "sometimes".');
+      }
     }
   }
 
@@ -294,6 +312,11 @@ faq_answers: answer every numbered question below for the typical person in this
   no = clearly false
   sometimes = genuinely varies by employer or specialisation (do not use it just to avoid deciding)
   not_really = mostly false with occasional exceptions
+Be strict on these four, they are the ones models get wrong:
+  "Do you need a special license or certification?" is yes ONLY if the law requires one to do the job. A course or an employer preference is "sometimes" or "not_really".
+  "Is it dangerous?" is yes ONLY for jobs with a real risk of serious injury or death (firefighter, roofer). Stress or responsibility is not danger.
+  "Is it a job most people have heard of?" must match difficulty: easy = yes, medium = yes or sometimes, hard = sometimes or not_really. Specialist jobs are NOT known by most people.
+  "Is it a job kids commonly dream of doing?" is yes ONLY for jobs children often say they want (vet, pilot, firefighter, actor). Most office and trade jobs are "not_really".
 Make the answers consistent with your profile.
 
 QUESTIONS

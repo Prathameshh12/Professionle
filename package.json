@@ -15,7 +15,9 @@
     "gen:approve": "tsx scripts/generate-jobs.ts approve all",
     "gen:status": "tsx scripts/generate-jobs.ts status",
     "seed:generated": "tsx scripts/seed-generated.ts",
-    "seed:generated:dry": "tsx scripts/seed-generated.ts dry"
+    "seed:generated:dry": "tsx scripts/seed-generated.ts dry",
+    "sync:jobs": "tsx scripts/sync-jobs.ts",
+    "sync:jobs:apply": "tsx scripts/sync-jobs.ts apply"
   },
   "dependencies": {
     "@vercel/analytics": "^2.0.1",

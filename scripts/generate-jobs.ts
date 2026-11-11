@@ -166,7 +166,13 @@ async function cmdJobs(limit: number) {
   for (let i = 0; i < batch.length && !stopped; i++) {
     const title = batch[i];
     const label = `[${i + 1}/${batch.length}] ${title}`;
-    const otherTitles = [...handWritten, ...generated.map((j) => j.title), ...allTitles.filter((t) => t !== title)];
+    // Titles AND synonyms of every other job, so a new synonym can never collide with one that exists.
+    const otherTitles = [
+      ...handWritten,
+      ...JOBS.flatMap((j) => j.synonyms),
+      ...generated.flatMap((j) => [j.title, ...j.synonyms]),
+      ...allTitles.filter((t) => t !== title),
+    ];
     let errors: string[] = [];
     let saved = false;
 

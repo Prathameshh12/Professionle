@@ -30,7 +30,11 @@ function similarity(a: string, b: string): number {
   const nb = normalize(b);
   if (!na || !nb) return 0;
   if (na === nb) return 1;
-  if (na.includes(nb) || nb.includes(na)) return 0.9;
+  // Containment only counts for whole words, so "rn" no longer matches "attorney"
+  // and "cop" no longer matches "copywriter", while "chef" still matches "head chef".
+  const pa = ` ${na} `;
+  const pb = ` ${nb} `;
+  if (pa.includes(pb) || pb.includes(pa)) return 0.9;
   const ta = trigrams(na);
   const tb = trigrams(nb);
   if (ta.size === 0 || tb.size === 0) return 0;
