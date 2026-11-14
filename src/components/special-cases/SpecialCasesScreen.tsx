@@ -11,8 +11,12 @@ import { TwoTruthsMode } from "./TwoTruthsMode";
 
 export type SpecialCaseMode = "role-reversal" | "meet-the-creator" | "blind-case" | "two-truths";
 
-export function SpecialCasesScreen() {
-  const [activeMode, setActiveMode] = useState<SpecialCaseMode | null>(null);
+export function SpecialCasesScreen({
+  initialMode = null,
+}: {
+  initialMode?: SpecialCaseMode | null;
+}) {
+  const [activeMode, setActiveMode] = useState<SpecialCaseMode | null>(initialMode);
 
   return (
     <main className="vignette min-h-screen flex flex-col">
@@ -27,7 +31,7 @@ export function SpecialCasesScreen() {
           </div>
         </div>
 
-        {activeMode ? (
+        {activeMode && !initialMode ? (
           <button
             onClick={() => setActiveMode(null)}
             className="font-case text-xs tracking-wide border border-wire px-3 py-2 text-paperDim hover:border-manila hover:text-manila transition-colors"
@@ -39,7 +43,7 @@ export function SpecialCasesScreen() {
             href="/"
             className="font-case text-xs tracking-wide border border-wire px-3 py-2 text-paperDim hover:border-manila hover:text-manila transition-colors"
           >
-            BACK TO MAIN GAME
+            {initialMode ? "← BACK TO MAIN GAME" : "BACK TO MAIN GAME"}
           </Link>
         )}
       </header>

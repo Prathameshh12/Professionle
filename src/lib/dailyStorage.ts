@@ -56,6 +56,7 @@ export interface DailyHome {
   score?: number;
   noCount?: number;
   totalQuestions?: number;
+  squares?: string[];
 }
 
 /** What /api/daily/today returns, in the shape the app uses. */
@@ -334,5 +335,25 @@ export function buildDailyHome(
   if (round.status === "active") {
     return { phase: "resume", ...base, noCount: round.noCount, totalQuestions: round.totalQuestions };
   }
-  return { phase: "done", ...base, status: round.status, score: round.score ?? 0 };
+  return {
+    phase: "done",
+    ...base,
+    status: round.status,
+    score: round.score ?? 0,
+    noCount: round.noCount,
+    totalQuestions: round.totalQuestions,
+    squares: squaresFor(round.transcript),
+  };
+}
+
+const SQUARE_CODE: Record<string, string> = { yes: "g", no: "r", sometimes: "y", not_really: "o", irrelevant: "w" };
+
+/** Colour codes for the finished-round row on the home screen. Hints do not get one. */
+function squaresFor(transcript: TranscriptEntry[]): string[] {
+  const out: string[] = [];
+  for (const entry of transcript) {
+    if (entry.kind === "wrong_guess") out.push("k");
+    else if (entry.kind === "qa") out.push(SQUARE_CODE[entry.answer] ?? "w");
+  }
+  return out;
 }
