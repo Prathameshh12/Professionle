@@ -1021,6 +1021,52 @@
   color: var(--manila);
 }
 
+/* ---------- built-by card (home, above the footer) ---------- */
+.hp-builtby {
+  text-align: center;
+}
+.hp-builtby-card {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 22px 20px;
+  border: 1px solid #2c323d;
+  border-radius: 6px;
+  background: #11161d;
+}
+.hp-builtby-by {
+  margin: 0;
+  font-size: 15px;
+  color: var(--paper);
+}
+.hp-builtby-line {
+  margin: 4px 0 16px;
+  font-size: 13px;
+  color: var(--dim);
+}
+.hp-builtby-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 20px;
+  border: 1px solid var(--manila);
+  border-radius: 6px;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--manila);
+  transition: background 0.2s;
+}
+.hp-builtby-btn:hover,
+.hp-builtby-btn:focus-visible {
+  background: #18202c;
+}
+.hp-builtby-btn:focus-visible {
+  outline: 2px solid var(--manila);
+  outline-offset: 3px;
+}
+
 /* ---------- wide screens: suspect stands beside the title ---------- */
 @media (min-width: 1300px) {
   .hp-suspect {

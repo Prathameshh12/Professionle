@@ -90,6 +90,13 @@ export function SiteMenu() {
               <span className="hp-dn-d">Hints, scoring and the daily reset</span>
             </span>
           </Link>
+          <Link href="/about" onClick={() => setOpen(false)}>
+            <span className="hp-dn-n">06</span>
+            <span>
+              <span className="hp-dn-t">About the creator</span>
+              <span className="hp-dn-d">Who built this, plus links</span>
+            </span>
+          </Link>
         </nav>
         <p className="hp-drawer-foot font-case">
           10 nos and you&apos;re out
