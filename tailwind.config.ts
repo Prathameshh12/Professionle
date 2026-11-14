@@ -20,9 +20,6 @@ const config: Config = {
         case: ["var(--font-case)", "monospace"],
         body: ["var(--font-body)", "sans-serif"],
       },
-      boxShadow: {
-        pin: "0 2px 6px rgba(0,0,0,0.45)",
-      },
     },
   },
   plugins: [],

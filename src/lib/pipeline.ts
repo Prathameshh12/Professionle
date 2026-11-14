@@ -1,6 +1,8 @@
 import { pool, toVectorLiteral } from "./db";
 import { embed } from "./embeddings";
 import { llm, type QuestionHistoryItem } from "./llm";
+import { isGuessCorrect, type JobNames } from "./guessMatch";
+import { isQuickQuestion } from "./quickQuestions";
 import type { Answer, AskResult, GameSession, Job, ResolutionSource } from "@/types";
 
 const NO_LIKE_ANSWERS: Answer[] = ["no", "not_really"];
@@ -13,39 +15,31 @@ const HISTORY_LIMIT = 30;
 // Step 1: guess detection
 // ---------------------------------------------------------------------------
 
-function normalize(s: string): string {
-  return s.trim().toLowerCase().replace(/[^a-z0-9\s]/g, "");
+// Titles and synonyms of every job, loaded once and reused for a few minutes.
+// Used to tell whether a short guess like "designer" points at only one job.
+const JOB_NAMES_TTL_MS = 10 * 60 * 1000;
+let jobNamesCache: { at: number; rows: JobNames[] } | null = null;
+
+async function loadJobNames(): Promise<JobNames[]> {
+  if (jobNamesCache && Date.now() - jobNamesCache.at < JOB_NAMES_TTL_MS) return jobNamesCache.rows;
+  const { rows } = await pool.query(`select id, title, synonyms from jobs`);
+  const list: JobNames[] = rows.map((r: any) => ({
+    id: String(r.id),
+    names: [r.title, ...(r.synonyms ?? [])],
+  }));
+  jobNamesCache = { at: Date.now(), rows: list };
+  return list;
 }
 
-function trigrams(s: string): Set<string> {
-  const padded = `  ${s}  `;
-  const grams = new Set<string>();
-  for (let i = 0; i < padded.length - 2; i++) grams.add(padded.slice(i, i + 3));
-  return grams;
-}
-
-/** Cheap local string similarity (0-1), used for guess matching without an LLM/DB round trip. */
-function similarity(a: string, b: string): number {
-  const na = normalize(a);
-  const nb = normalize(b);
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  // Containment only counts for whole words, so "rn" no longer matches "attorney"
-  // and "cop" no longer matches "copywriter", while "chef" still matches "head chef".
-  const pa = ` ${na} `;
-  const pb = ` ${nb} `;
-  if (pa.includes(pb) || pb.includes(pa)) return 0.9;
-  const ta = trigrams(na);
-  const tb = trigrams(nb);
-  if (ta.size === 0 || tb.size === 0) return 0;
-  let overlap = 0;
-  for (const g of ta) if (tb.has(g)) overlap++;
-  return (2 * overlap) / (ta.size + tb.size);
-}
-
-function isMatchForJob(guessedJob: string, job: Job): boolean {
-  const candidates = [job.title, ...job.synonyms];
-  return candidates.some((c) => similarity(c, guessedJob) >= 0.6);
+async function isMatchForJob(guessedJob: string, job: Job): Promise<boolean> {
+  const current: JobNames = { id: String(job.id), names: [job.title, ...job.synonyms] };
+  let all: JobNames[] = [];
+  try {
+    all = await loadJobNames();
+  } catch {
+    // If the job list can't be loaded, fall back to this job's own names only.
+  }
+  return isGuessCorrect(guessedJob, current, all);
 }
 
 // Messages starting with these verbs are almost always attribute questions
@@ -58,9 +52,44 @@ const ATTRIBUTE_LEAD = /^(do|does|did|can|could|would|will|has|have|should)\b/i;
 // same way ("is it dangerous?") - only these go to the LLM classifier.
 const GUESS_CANDIDATE = /^(is it|is this|is that|are you|is your job|is the job|my guess is|i think it'?s|i guess it'?s|could it be)\b/i;
 
-async function detectGuess(question: string): Promise<string | null> {
+// Words that start a question or a chat reply, never a job title.
+const NOT_A_JOB_NAME =
+  /^(what|why|how|where|when|which|who|whose|is|are|am|was|were|do|does|did|can|could|would|will|has|have|should|yes|no|maybe|hello|hi|hey|thanks|thank|help|hint|ok|okay)\b/i;
+
+/** "pilot", "a pilot", "The Pilot?" all become "pilot". Returns null if it does not look like a bare job name. */
+function bareJobName(question: string): string | null {
+  const cleaned = question.trim().replace(/[?!.\s]+$/, "");
+  if (!cleaned || cleaned.length > 40) return null;
+  if (!/^[a-z][a-z'&\- ]*$/i.test(cleaned)) return null;
+  if (NOT_A_JOB_NAME.test(cleaned)) return null;
+  const name = cleaned.replace(/^(an?|the)\s+/i, "").trim().toLowerCase();
+  if (name.length < 2 || name.split(/\s+/).length > 4) return null;
+  return name;
+}
+
+async function detectGuess(question: string, job: Job): Promise<string | null> {
   const q = question.trim();
-  if (!q || ATTRIBUTE_LEAD.test(q) || !GUESS_CANDIDATE.test(q)) return null;
+  if (!q) return null;
+
+  
+  // The one-tap chips are fixed questions and never guesses, so skip the AI check for them.
+  if (isQuickQuestion(q)) return null;
+
+  // Just a job name, like "pilot" or "a dentist".
+  const bare = bareJobName(q);
+  if (bare) {
+    // The right answer is recognised locally, so it wins without an AI call.
+    if (await isMatchForJob(bare, job)) return bare;
+    // Anything else could be a wrong guess ("plumber") or a short question ("outdoors"). Ask the classifier.
+    try {
+      const result = await llm.classifyGuess(q);
+      return result.is_guess ? result.guessed_job : null;
+    } catch {
+      return null; // if the check fails, treat it as a normal question instead of showing an error
+    }
+  }
+
+  if (ATTRIBUTE_LEAD.test(q) || !GUESS_CANDIDATE.test(q)) return null;
   const result = await llm.classifyGuess(q);
   return result.is_guess ? result.guessed_job : null;
 }
@@ -72,6 +101,12 @@ async function detectGuess(question: string): Promise<string | null> {
 const FIELD_TRIGGERS = ["field", "industry", "sector", "category", "domain", "area"];
 const FIELD_PHRASING = /\b(is it|is this|is that|does it|is the job)\b.*\b(in|part of|related to|involve|involves|within)\b/i;
 
+/** True if `word` appears in `text` as a whole word (an optional plural "s" is allowed), so "art" no longer matches "start". */
+function containsWord(text: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(^|[^a-z0-9])${escaped}s?($|[^a-z0-9])`).test(text);
+}
+
 function checkTagShortcut(question: string, tags: string[]): Answer | null {
   const q = question.toLowerCase();
   const looksLikeFieldQuestion =
@@ -81,7 +116,7 @@ function checkTagShortcut(question: string, tags: string[]): Answer | null {
   for (const tag of tags) {
     const t = tag.toLowerCase();
     const singular = t.endsWith("s") ? t.slice(0, -1) : t;
-    if (q.includes(t) || q.includes(singular)) return "yes";
+    if (containsWord(q, t) || containsWord(q, singular)) return "yes";
   }
   return null;
 }
@@ -252,9 +287,9 @@ export async function resolveQuestion(session: GameSession, job: Job, questionRa
   if (session.status !== "active") throw new Error("This session has already ended");
 
   // Step 1: is this a direct guess at the job title?
-  const guessedJob = await detectGuess(question);
+  const guessedJob = await detectGuess(question, job);
   if (guessedJob) {
-    return isMatchForJob(guessedJob, job)
+    return (await isMatchForJob(guessedJob, job))
       ? finalizeWin(session, job, question)
       : finalizeWrongGuess(session, question);
   }

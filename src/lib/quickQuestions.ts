@@ -99,3 +99,10 @@ export function findAnswer(transcript: TranscriptEntry[], question: string): Ans
   }
   return null;
 }
+
+const QUICK_QUESTION_SET = new Set(QUICK_GROUPS.flatMap((g) => g.questions.map(norm)));
+
+/** True if the text is exactly one of the one-tap chip questions. */
+export function isQuickQuestion(q: string): boolean {
+  return QUICK_QUESTION_SET.has(norm(q));
+}

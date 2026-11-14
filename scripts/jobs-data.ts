@@ -935,7 +935,7 @@ Pay is generally strong, though it varies enormously between a small local pract
 corporate firm. It overlaps with politics, business, and law enforcement, and does not involve
 science, animals, or the entertainment industry.`,
     hint_1: "This job needs a specific law degree and a formal licensing process before you can practice — the title itself is legally protected.",
-    hint_2: "Whether this job involves regular courtroom appearances really depends on the specialty — some lawyers rarely see the inside of a courtroom at all.",
+    hint_2: "Whether this job involves regular courtroom appearances really depends on the specialty, and plenty of people in it rarely see the inside of a courtroom at all.",
     faq: [
       { question: "Do you work indoors?", answer: "yes" },
       { question: "Do you work outdoors?", answer: "no" },
