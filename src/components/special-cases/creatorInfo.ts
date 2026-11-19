@@ -32,7 +32,7 @@ export const CREATOR_INFO = {
     { label: "LinkedIn", url: "https://www.linkedin.com/in/prathamesh-ahire-9b38a9298/" },
     { label: "Portfolio", url: "https://prathameshahire.netlify.app/" },
     { label: "GitHub", url: "https://github.com/Prathameshh12" },
-    { label: "Email", url: "prathamesh.ahire1204@gmail.com" },
+    { label: "Email", url: "mailto:prathamesh.ahire1204@gmail.com" },
     { label: "Resume", url: "https://drive.google.com/file/d/10cQ9FbjGrtQ5TgciZvJA442grvXnvZUb/view?usp=sharing" }, 
   ] as CreatorLink[],
 };

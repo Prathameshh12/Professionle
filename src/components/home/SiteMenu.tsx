@@ -93,8 +93,8 @@ export function SiteMenu() {
           <Link href="/about" onClick={() => setOpen(false)}>
             <span className="hp-dn-n">06</span>
             <span>
-              <span className="hp-dn-t">About the creator</span>
-              <span className="hp-dn-d">Who built this, plus links</span>
+              <span className="hp-dn-t">About</span>
+              <span className="hp-dn-d">The game, the creator, contact</span>
             </span>
           </Link>
         </nav>

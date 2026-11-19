@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRef } from "react";
 import { DailyFolder } from "@/components/home/DailyFolder";
-import { BuiltBy } from "@/components/home/BuiltBy";
 import { DemoRound } from "@/components/home/DemoRound";
+import { CREATOR_INFO } from "@/components/special-cases/creatorInfo";
 import { EvidenceLayer } from "@/components/home/EvidenceLayer";
 import { Hero } from "@/components/home/Hero";
 import { PracticeFiles } from "@/components/home/PracticeFiles";
@@ -45,9 +45,8 @@ export function StartScreen({
         <PracticeFiles onStart={onStart} />
         <SpecialTags />
         <DemoRound />
-        <BuiltBy />
         <footer className="hp-footer font-case">
-          A new case every day · <Link href="/faq">FAQ</Link> · <Link href="/about">About</Link>
+          A new case every day · <Link href="/faq">FAQ</Link> · <Link href="/about">About</Link> · Built by <Link href="/about#creator">{CREATOR_INFO.name}</Link>
         </footer>
       </div>
     </main>
