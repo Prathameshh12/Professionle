@@ -20,3 +20,5 @@ next-env.d.ts
 # misc
 .DS_Store
 npm-debug.log*
+
+scripts/jobs-review.md

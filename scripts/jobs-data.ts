@@ -178,7 +178,7 @@ wildlife vets do work in visitor-facing institutions.`,
   },
   {
     title: "Video Game Designer",
-    synonyms: ["game designer", "video game designer", "game developer"],
+    synonyms: ["game developer"],
     difficulty: "easy",
     tags: ["creative", "technology", "entertainment", "media"],
     profile_prose: `A video game designer shapes how a game plays: its rules, systems, levels,
@@ -290,7 +290,7 @@ field sites, conferences, or remote coastlines is a real and expected part of th
   },
   {
     title: "Forensic Accountant",
-    synonyms: ["fraud investigator", "forensic auditor"],
+    synonyms: ["forensic auditor"],
     difficulty: "hard",
     tags: ["finance", "investigation", "professional services", "law-adjacent"],
     profile_prose: `A forensic accountant investigates financial records to uncover fraud,
@@ -935,7 +935,7 @@ Pay is generally strong, though it varies enormously between a small local pract
 corporate firm. It overlaps with politics, business, and law enforcement, and does not involve
 science, animals, or the entertainment industry.`,
     hint_1: "This job needs a specific law degree and a formal licensing process before you can practice — the title itself is legally protected.",
-    hint_2: "Whether this job involves regular courtroom appearances really depends on the specialty — some lawyers rarely see the inside of a courtroom at all.",
+    hint_2: "Whether this job involves regular courtroom appearances really depends on the specialty, and plenty of people in it rarely see the inside of a courtroom at all.",
     faq: [
       { question: "Do you work indoors?", answer: "yes" },
       { question: "Do you work outdoors?", answer: "no" },
@@ -1140,7 +1140,7 @@ top-ranked players specifically, though far less so for the majority of the prof
   },
   {
     title: "Actor",
-    synonyms: ["actress", "performer"],
+    synonyms: ["actress"],
     difficulty: "easy",
     tags: ["entertainment", "performance", "creative", "media"],
     profile_prose: `An actor performs roles in film, television, theatre, or increasingly online

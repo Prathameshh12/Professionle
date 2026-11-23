@@ -1,0 +1,61 @@
+# One job title per line. Lines starting with # are ignored.
+Electrician
+Plumber
+Carpenter
+Hairdresser
+Barista
+Bus Driver
+Paramedic
+Dentist
+Pharmacist
+Farmer
+Baker
+Mechanic
+Journalist
+Photographer
+Fashion Designer
+Personal Trainer
+Lifeguard
+Flight Attendant
+Librarian
+Zookeeper
+Real Estate Agent
+Bartender
+Physiotherapist
+Psychologist
+Social Worker
+Air Traffic Controller
+Data Scientist
+Interior Designer
+Translator
+Event Planner
+Welder
+Locksmith
+Tattoo Artist
+Florist
+Beekeeper
+Park Ranger
+Archaeologist
+Astronomer
+Private Investigator
+Optometrist
+Dietitian
+Occupational Therapist
+Graphic Designer
+Marketing Manager
+Actuary
+Radiographer
+Stunt Performer
+Auctioneer
+Taxidermist
+Epidemiologist
+Urban Planner
+Court Reporter
+Sign Language Interpreter
+Perfumer
+Speech Pathologist
+Mortgage Broker
+Judge
+Osteopath
+Pest Controller
+Surveyor

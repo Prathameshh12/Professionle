@@ -91,3 +91,16 @@ export async function giveUp(sessionId: string): Promise<{ session: GameSession;
   if (!job) return null;
   return { session: mapSession(rows[0]), job };
 }
+
+/** Opens a session pinned to a specific job (used by Daily mode). */
+export async function startSessionForJob(
+  jobId: string,
+  puzzleDate?: string,
+  userId?: string
+): Promise<GameSession> {
+  const { rows } = await pool.query(
+    `insert into game_sessions (job_id, user_id, puzzle_date) values ($1, $2, $3::date) returning *`,
+    [jobId, userId ?? null, puzzleDate ?? null]
+  );
+  return mapSession(rows[0]);
+}

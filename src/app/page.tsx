@@ -1,36 +1,47 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { DailyResult } from "@/components/DailyResult";
+import { QuickAsk } from "@/components/QuickAsk";
+import { ResultModal } from "@/components/ResultModal";
+import { StartScreen } from "@/components/StartScreen";
 import { TallyCounter } from "@/components/TallyCounter";
 import { Logo } from "@/components/logo";
-import type { Answer, Difficulty } from "@/types";
+import { ANSWER_COLOR, ANSWER_LABEL } from "@/lib/answerStyle";
+import { formatPuzzleDate } from "@/lib/dailyFormat";
+import { buildShareText, countHints, type TranscriptEntry } from "@/lib/dailyScore";
+import {
+  averageQuestions,
+  buildDailyHome,
+  emptyData,
+  finishRound,
+  loadDaily,
+  roundIsToday,
+  saveDaily,
+  startRound,
+  updateRound,
+  type DailyData,
+  type DailyRound,
+  type TodayInfo,
+} from "@/lib/dailyStorage";
+import type { Difficulty } from "@/types";
 
-type TranscriptEntry =
-  | { kind: "qa"; question: string; answer: Answer }
-  | { kind: "wrong_guess"; question: string }
-  | { kind: "hint"; level: 5 | 8; text: string };
+type Mode = "practice" | "daily";
 
-const ANSWER_LABEL: Record<Answer, string> = {
-  yes: "YES",
-  no: "NO",
-  sometimes: "SOMETIMES",
-  not_really: "NOT REALLY",
-  irrelevant: "N/A",
-};
-
-const ANSWER_COLOR: Record<Answer, string> = {
-  yes: "text-emerald-400 border-emerald-400",
-  no: "text-alert border-alert",
-  sometimes: "text-manila border-manila",
-  not_really: "text-alert/80 border-alert/80",
-  irrelevant: "text-paperDim border-paperDim",
-};
+/** Reads a JSON reply. Returns null if the server sent something else (like an HTML error page). */
+async function readJson(res: Response): Promise<any> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
 
 export default function GamePage() {
   const [booting, setBooting] = useState(true);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "starting" | "active" | "won" | "lost">("idle");
+  const [mode, setMode] = useState<Mode>("practice");
   const [difficulty, setDifficulty] = useState<Difficulty | undefined>(undefined);
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [noCount, setNoCount] = useState(0);
@@ -41,6 +52,45 @@ export default function GamePage() {
   const [error, setError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [quickTab, setQuickTab] = useState(0);
+  // After a typed question we put the cursor back in the box. After a chip tap we do not on phones, so the keyboard stays away.
+  const refocusRef = useRef(true);
+  // The server allows one question every 2 seconds. A quick second tap waits its turn instead of failing.
+  const nextAskAtRef = useRef(0);
+  // The result card pops up when a round ends. Closing it leaves a "Show result" button behind.
+  const [resultDismissed, setResultDismissed] = useState(false);
+  // True when the round just ended on this screen (so we pause a moment before the pop-up), false when reopened from home.
+  const endedLiveRef = useRef(false);
+
+  // Daily mode. `daily` is what is saved in the browser (today's round and the stats).
+  // dailyRef always holds the latest copy, so async code never works from a stale one.
+  const [daily, setDaily] = useState<DailyData>(emptyData);
+  const dailyRef = useRef<DailyData>(daily);
+  const [today, setToday] = useState<TodayInfo | null>(null);
+
+  function commitDaily(next: DailyData) {
+    dailyRef.current = next;
+    setDaily(next);
+    saveDaily(next);
+  }
+
+  /** Asks the server which puzzle is live. Returns null if it cannot be reached. */
+  async function refreshToday(): Promise<TodayInfo | null> {
+    try {
+      const res = await fetch("/api/daily/today", { cache: "no-store" });
+      if (!res.ok) throw new Error("bad status");
+      const d = await res.json();
+      if (typeof d.puzzle_date !== "string" || typeof d.puzzle_number !== "number" || typeof d.next_puzzle_at !== "string") {
+        throw new Error("bad shape");
+      }
+      const info: TodayInfo = { date: d.puzzle_date, number: d.puzzle_number, nextAt: d.next_puzzle_at };
+      setToday(info);
+      return info;
+    } catch {
+      setToday(null);
+      return null;
+    }
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -52,10 +102,19 @@ export default function GamePage() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Reads the saved daily round and asks which puzzle is live, while the splash screen is showing.
+  useEffect(() => {
+    const saved = loadDaily();
+    dailyRef.current = saved;
+    setDaily(saved);
+    refreshToday();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Refocus the question box the moment it's re-enabled, so typing the next
   // question doesn't require clicking back into it every single time.
   useEffect(() => {
-    if (!asking) {
+    if (!asking && refocusRef.current) {
       inputRef.current?.focus();
     }
   }, [asking]);
@@ -73,6 +132,9 @@ export default function GamePage() {
   }, []);
 
   async function startGame(difficulty?: Difficulty) {
+    setResultDismissed(false);
+    endedLiveRef.current = false;
+    setMode("practice");
     setStatus("starting");
     setError(null);
     setDifficulty(difficulty);
@@ -87,8 +149,8 @@ export default function GamePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(difficulty ? { difficulty } : {}),
       }).then(async (res) => {
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error ?? "Could not start a new round");
+        const data = await readJson(res);
+        if (!res.ok || !data) throw new Error(data?.error ?? "Could not start a new round. Please try again.");
         return data;
       });
 
@@ -108,41 +170,196 @@ export default function GamePage() {
     }
   }
 
-  async function ask(e: React.FormEvent) {
+  /** Puts a saved daily round on screen. */
+  function showDailyRound(round: DailyRound) {
+    setResultDismissed(false);
+    endedLiveRef.current = false;
+    setMode("daily");
+    setDifficulty(undefined);
+    setSessionId(round.sessionId);
+    setTranscript(round.transcript);
+    setNoCount(round.noCount);
+    setTotalQuestions(round.totalQuestions);
+    setRevealedTitle(round.revealedTitle);
+    setError(null);
+    setStatus(round.status);
+    window.history.pushState({ screen: "game" }, "", "");
+  }
+
+  /** Ends today's round and adds it to the stats. Safe to call twice. */
+  function finishDaily(
+    finalStatus: "won" | "lost",
+    title: string | null,
+    entries: TranscriptEntry[],
+    nos: number,
+    total: number
+  ) {
+    commitDaily(
+      finishRound(dailyRef.current, {
+        status: finalStatus,
+        transcript: entries,
+        noCount: nos,
+        totalQuestions: total,
+        revealedTitle: title,
+      })
+    );
+  }
+
+  /** Re-checks a saved, unfinished round against the server. */
+  async function syncDailyRound(round: DailyRound) {
+    try {
+      const res = await fetch(`/api/session/${round.sessionId}/state`, { cache: "no-store" });
+      if (res.status === 404) {
+        // The server no longer knows this round, so it cannot be continued. Start clean.
+        commitDaily({ ...dailyRef.current, round: null });
+        backToMenu();
+        setError("That round could not be found, so it was reset. Start today's case again.");
+        return;
+      }
+      if (!res.ok) return;
+      const s = await res.json();
+      if (s.status === "won" || s.status === "lost") {
+        setRevealedTitle(s.revealed_title ?? null);
+        setNoCount(s.no_count);
+        setTotalQuestions(s.total_questions);
+        setStatus(s.status);
+        finishDaily(s.status, s.revealed_title ?? null, round.transcript, s.no_count, s.total_questions);
+      } else if (typeof s.no_count === "number" && typeof s.total_questions === "number") {
+        setNoCount(s.no_count);
+        setTotalQuestions(s.total_questions);
+        commitDaily(
+          updateRound(dailyRef.current, {
+            transcript: round.transcript,
+            noCount: s.no_count,
+            totalQuestions: s.total_questions,
+          })
+        );
+      }
+    } catch {
+      // Offline or a server hiccup: carry on with what is saved on this device.
+    }
+  }
+
+  /**
+   * Opens today's puzzle. If it is already finished, shows the result. If it is half played,
+   * carries on from where it stopped. Otherwise starts a fresh round on the server.
+   */
+  async function startDaily(todayOverride?: TodayInfo | null) {
+    setError(null);
+    const live = todayOverride !== undefined ? todayOverride : today;
+    const saved = dailyRef.current.round;
+
+    if (saved && roundIsToday(saved, live, Date.now())) {
+      showDailyRound(saved);
+      if (saved.status === "active") await syncDailyRound(saved);
+      return;
+    }
+
+    setMode("daily");
+    setStatus("starting");
+    const minDelay = new Promise((resolve) => setTimeout(resolve, 2000));
+    try {
+      const fetchPromise = fetch("/api/daily/start", { method: "POST" }).then(async (res) => {
+        const data = await readJson(res);
+        if (!res.ok || !data) throw new Error(data?.error ?? "Could not open today's case. Please try again.");
+        return data;
+      });
+      const [data] = await Promise.all([fetchPromise, minDelay]);
+      if (
+        typeof data.session_id !== "string" ||
+        typeof data.puzzle_date !== "string" ||
+        typeof data.puzzle_number !== "number" ||
+        typeof data.next_puzzle_at !== "string"
+      ) {
+        throw new Error("Could not open today's case");
+      }
+      const info: TodayInfo = { date: data.puzzle_date, number: data.puzzle_number, nextAt: data.next_puzzle_at };
+      setToday(info);
+      const next = startRound(dailyRef.current, {
+        date: info.date,
+        number: info.number,
+        nextAt: info.nextAt,
+        sessionId: data.session_id,
+      });
+      commitDaily(next);
+      if (next.round) showDailyRound(next.round);
+    } catch (err: any) {
+      setError(err.message ?? "Could not open today's case");
+      setMode("practice");
+      setStatus("idle");
+    }
+  }
+
+  /** Called when the countdown reaches zero: find out which puzzle is live now. */
+  async function startNewCase() {
+    const live = await refreshToday();
+    await startDaily(live);
+  }
+
+  function ask(e: React.FormEvent) {
     e.preventDefault();
-    const question = input.trim();
+    submitQuestion(input, false);
+  }
+
+  /** Sends one question. Used by the text box and by the tap-to-ask chips. */
+  async function submitQuestion(raw: string, fromChip: boolean) {
+    const question = raw.trim();
     if (!question || !sessionId || asking || status !== "active") return;
+    const typed = !fromChip || question === input.trim();
+    refocusRef.current =
+      !fromChip || (typeof window.matchMedia === "function" && window.matchMedia("(pointer: fine)").matches);
     setAsking(true);
     setError(null);
-    setInput("");
+    if (typed) setInput("");
     try {
+      const wait = nextAskAtRef.current - Date.now();
+      if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+      nextAskAtRef.current = Date.now() + 2100;
       const res = await fetch(`/api/session/${sessionId}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Something went wrong");
+      const data = await readJson(res);
+      if (!res.ok || !data) throw new Error(data?.error ?? "Something went wrong. Please try again.");
 
+      const added: TranscriptEntry[] = [];
       if (data.wrong_guess) {
-        setTranscript((t) => [...t, { kind: "wrong_guess", question }]);
+        added.push({ kind: "wrong_guess", question });
       } else if (data.is_correct_guess) {
-        setTranscript((t) => [...t, { kind: "qa", question, answer: "yes" }]);
+        added.push({ kind: "qa", question, answer: "yes" });
       } else if (data.answer) {
-        setTranscript((t) => [...t, { kind: "qa", question, answer: data.answer }]);
+        added.push({ kind: "qa", question, answer: data.answer });
         if (data.hint) {
           const level = data.no_count >= 8 ? 8 : 5;
-          setTranscript((t) => [...t, { kind: "hint", level, text: data.hint }]);
+          added.push({ kind: "hint", level, text: data.hint });
         }
       }
+      const nextTranscript = [...transcript, ...added];
+      setTranscript(nextTranscript);
 
       setNoCount(data.no_count);
       setTotalQuestions(data.total_questions);
       if (data.revealed_title) setRevealedTitle(data.revealed_title);
+      if (data.status === "won" || data.status === "lost") endedLiveRef.current = true;
       setStatus(data.status);
+
+      if (mode === "daily") {
+        if (data.status === "won" || data.status === "lost") {
+          finishDaily(data.status, data.revealed_title ?? null, nextTranscript, data.no_count, data.total_questions);
+        } else {
+          commitDaily(
+            updateRound(dailyRef.current, {
+              transcript: nextTranscript,
+              noCount: data.no_count,
+              totalQuestions: data.total_questions,
+            })
+          );
+        }
+      }
     } catch (err: any) {
       setError(err.message);
-      setInput(question);
+      setInput((cur) => cur || question);
     } finally {
       setAsking(false);
     }
@@ -150,16 +367,24 @@ export default function GamePage() {
 
   async function giveUp() {
     if (!sessionId || status !== "active") return;
+    if (mode === "daily" && !window.confirm("Give up on today's case? You only get one try each day.")) return;
     const res = await fetch(`/api/session/${sessionId}/give-up`, { method: "POST" });
-    const data = await res.json();
-    if (res.ok) {
+    const data = await readJson(res);
+    if (res.ok && data) {
       setRevealedTitle(data.revealed_title);
+      endedLiveRef.current = true;
       setStatus(data.status);
+      if (mode === "daily") {
+        finishDaily("lost", data.revealed_title ?? null, transcript, noCount, totalQuestions);
+      }
     }
   }
 
   /** Sends the player back to the difficulty-select screen instead of starting a new game directly. */
   function backToMenu() {
+    setResultDismissed(false);
+    endedLiveRef.current = false;
+    setMode("practice");
     setSessionId(null);
     setStatus("idle");
     setTranscript([]);
@@ -173,13 +398,25 @@ export default function GamePage() {
     return <LoadingScreen label="LOADING PROFESSIONLE" />;
   }
   if (status === "starting") {
-    return <LoadingScreen label="SETTING THINGS UP" />;
+    return <LoadingScreen label={mode === "daily" ? "OPENING TODAY'S CASE" : "SETTING THINGS UP"} />;
   }
   if (status === "idle") {
-    return <StartScreen onStart={startGame} error={error} />;
+    return (
+      <StartScreen
+        daily={buildDailyHome(daily, today, Date.now(), formatPuzzleDate)}
+        onStartDaily={() => startDaily()}
+        onStart={startGame}
+        onDayRolled={refreshToday}
+        error={error}
+      />
+    );
   }
 
   const gameOver = status === "won" || status === "lost";
+  const dailyRound = mode === "daily" ? daily.round : null;
+  const showDailyResult = gameOver && dailyRound !== null && dailyRound.counted;
+  const showPracticeResult = gameOver && revealedTitle !== null && mode === "practice";
+  const hasResult = showDailyResult || showPracticeResult;
 
   return (
     <main className="vignette min-h-screen flex flex-col">
@@ -192,7 +429,7 @@ export default function GamePage() {
             <div className="flex items-center gap-2">
               <p className="font-case text-xs tracking-wide text-manila">CASE FILE — OPEN</p>
               <span className="font-case text-[10px] tracking-wide border border-wire rounded px-1.5 py-0.5 text-paperDim uppercase">
-                {difficulty ?? "random"}
+                {mode === "daily" ? `Daily No. ${dailyRound?.number ?? ""}`.trim() : difficulty ?? "random"}
               </span>
             </div>
             <h1 className="font-case text-xl">Professionle</h1>
@@ -211,61 +448,45 @@ export default function GamePage() {
       <div className="flex-1 flex flex-col md:flex-row min-h-0">
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-3 min-h-0">
           {transcript.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center text-center gap-4 py-12">
+            <div className="enter h-full flex flex-col items-center justify-center text-center gap-5 py-8">
               <Logo size={40} />
               <p className="text-paperDim/70 italic max-w-sm">
-                Ask a yes-or-no question to get started, or try one of these:
+                Ask a yes-or-no question to get started, or tap one of these:
               </p>
-              <div className="flex flex-wrap justify-center gap-2 max-w-md">
-                {STARTER_QUESTIONS.map((q) => (
-                  <button
-                    key={q}
-                    onClick={() => setInput(q)}
-                    className="text-sm border border-wire rounded-full px-3 py-1.5 text-paperDim hover:border-manila hover:text-manila transition-colors"
-                  >
-                    {q}
-                  </button>
-                ))}
-              </div>
+              <QuickAsk
+                layout="center"
+                transcript={transcript}
+                tab={quickTab}
+                onTab={setQuickTab}
+                onPick={(q) => submitQuestion(q, true)}
+                disabled={asking || gameOver}
+              />
             </div>
           )}
           {transcript.map((entry, i) => (
             <TranscriptRow key={i} entry={entry} />
           ))}
           {asking && <ThinkingIndicator />}
-          {gameOver && revealedTitle && (
-            <div className="bg-panelLight border border-manila/40 rounded-lg p-5 mt-2">
-              <p className="font-case text-manila text-sm mb-1">
-                {status === "won" ? "CASE CLOSED — CORRECT" : "CASE CLOSED"}
-              </p>
-              <p className="text-2xl">
-                The job was: <span className="font-semibold text-paper">{revealedTitle}</span>
-              </p>
-              <div className="mt-4 flex flex-wrap gap-3">
-                <button
-                  onClick={() => startGame()}
-                  className="font-case text-sm border border-manila text-manila px-4 py-2 hover:bg-manila hover:text-ink transition-colors"
-                >
-                  PLAY AGAIN (RANDOM)
-                </button>
-                <button
-                  onClick={backToMenu}
-                  className="font-case text-sm border border-wire text-paperDim px-4 py-2 hover:border-manila hover:text-manila transition-colors"
-                >
-                  CHOOSE DIFFICULTY
-                </button>
-              </div>
-            </div>
+          {hasResult && resultDismissed && (
+            <button
+              type="button"
+              onClick={() => setResultDismissed(false)}
+              className="enter mt-2 w-full border-2 border-manila py-3 font-case text-sm tracking-[0.14em] text-manila transition-colors hover:bg-manila hover:text-ink"
+            >
+              SHOW RESULT
+            </button>
           )}
         </div>
 
-        <aside className="md:w-72 border-t md:border-t-0 md:border-l border-wire px-6 py-6 space-y-5">
-          <TallyCounter count={noCount} />
-          <div className="border-t border-wire pt-5">
+        <aside className="flex items-center gap-4 border-t border-wire px-4 py-3 md:block md:w-72 md:space-y-5 md:border-l md:border-t-0 md:px-6 md:py-6">
+          <div className="min-w-0 flex-1 md:flex-none">
+            <TallyCounter count={noCount} />
+          </div>
+          <div className="shrink-0 border-l border-wire pl-4 md:border-l-0 md:border-t md:pl-0 md:pt-5">
             <p className="font-case text-xs tracking-wide text-paperDim mb-1">QUESTIONS ASKED</p>
             <p className="text-2xl font-case">{totalQuestions}</p>
           </div>
-          <div className="border-t border-wire pt-5 text-xs text-paperDim/70 leading-relaxed">
+          <div className="hidden border-t border-wire pt-5 text-xs leading-relaxed text-paperDim/70 md:block">
             Hints unlock automatically at 5 and 8 &ldquo;no&rdquo; answers. Ten &ldquo;no&rdquo;
             answers and the case goes cold — guess the exact title any time to close it early.
           </div>
@@ -273,6 +494,17 @@ export default function GamePage() {
       </div>
 
       {error && <p className="px-6 py-2 text-alert text-sm">{error}</p>}
+
+      {!gameOver && transcript.length > 0 && (
+        <QuickAsk
+          layout="bar"
+          transcript={transcript}
+          tab={quickTab}
+          onTab={setQuickTab}
+          onPick={(q) => submitQuestion(q, true)}
+          disabled={asking}
+        />
+      )}
 
       <form onSubmit={ask} className="border-t border-wire p-4 flex gap-3">
         <input
@@ -292,6 +524,65 @@ export default function GamePage() {
           {asking ? "…" : "ASK"}
         </button>
       </form>
+      <ResultModal
+        open={hasResult && !resultDismissed}
+        delay={endedLiveRef.current ? 800 : 0}
+        onClose={() => {
+          endedLiveRef.current = false;
+          setResultDismissed(true);
+        }}
+      >
+        {showDailyResult && dailyRound && (
+          <DailyResult
+            number={dailyRound.number}
+            won={dailyRound.status === "won"}
+            title={dailyRound.revealedTitle ?? revealedTitle ?? "Unknown"}
+            score={dailyRound.score ?? 0}
+            hintsTaken={countHints(dailyRound.transcript)}
+            totalQuestions={dailyRound.totalQuestions}
+            stats={{
+              streak: daily.stats.streak,
+              best: daily.stats.best,
+              played: daily.stats.played,
+              average: averageQuestions(daily.stats),
+            }}
+            shareText={buildShareText({
+              number: dailyRound.number,
+              transcript: dailyRound.transcript,
+              won: dailyRound.status === "won",
+              totalQuestions: dailyRound.totalQuestions,
+              score: dailyRound.score ?? 0,
+            })}
+            nextAt={dailyRound.nextAt}
+            onPractice={backToMenu}
+            onNewCase={startNewCase}
+          />
+        )}
+        {showPracticeResult && (
+          <div className="px-5 pb-5 sm:px-6 sm:pb-6">
+            <p className="font-case text-manila text-sm mb-1">
+              {status === "won" ? "CASE CLOSED — CORRECT" : "CASE CLOSED"}
+            </p>
+            <p className="text-2xl">
+              The job was: <span className="font-semibold text-paper">{revealedTitle}</span>
+            </p>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                onClick={() => startGame()}
+                className="font-case text-sm border border-manila text-manila px-4 py-2 hover:bg-manila hover:text-ink transition-colors"
+              >
+                PLAY AGAIN (RANDOM)
+              </button>
+              <button
+                onClick={backToMenu}
+                className="font-case text-sm border border-wire text-paperDim px-4 py-2 hover:border-manila hover:text-manila transition-colors"
+              >
+                CHOOSE DIFFICULTY
+              </button>
+            </div>
+          </div>
+        )}
+      </ResultModal>
     </main>
   );
 }
@@ -308,12 +599,6 @@ function ThinkingIndicator() {
     </div>
   );
 }
-
-const STARTER_QUESTIONS = [
-  "Do you work indoors?",
-  "Is it a creative job?",
-  "Would I need a degree for this?",
-];
 
 const MAX_NOS = 10;
 
@@ -333,7 +618,7 @@ function RiskMeter({ count }: { count: number }) {
 function TranscriptRow({ entry }: { entry: TranscriptEntry }) {
   if (entry.kind === "hint") {
     return (
-      <div className="border border-manila/50 bg-panelLight rounded-lg px-4 py-3">
+      <div className="enter border border-manila/50 bg-panelLight rounded-lg px-4 py-3">
         <p className="font-case text-xs text-manila mb-1">
           CASE NOTE — UNLOCKED AT {entry.level} NOS
         </p>
@@ -343,14 +628,14 @@ function TranscriptRow({ entry }: { entry: TranscriptEntry }) {
   }
   if (entry.kind === "wrong_guess") {
     return (
-      <div className="bg-panel/60 border border-wire rounded-lg px-4 py-3">
+      <div className="enter bg-panel/60 border border-wire rounded-lg px-4 py-3">
         <p className="text-paper/90 italic">&ldquo;{entry.question}&rdquo;</p>
         <p className="font-case text-sm text-paperDim mt-1">✕ Not that one.</p>
       </div>
     );
   }
   return (
-    <div className="bg-panel/60 border border-wire rounded-lg px-4 py-3 flex items-start justify-between gap-4">
+    <div className="enter bg-panel/60 border border-wire rounded-lg px-4 py-3 flex items-start justify-between gap-4">
       <p className="text-paper/90 italic flex-1">&ldquo;{entry.question}&rdquo;</p>
       <span
         className={`stamp shrink-0 font-case text-xs border-2 px-2 py-1 ${ANSWER_COLOR[entry.answer]}`}
@@ -360,18 +645,6 @@ function TranscriptRow({ entry }: { entry: TranscriptEntry }) {
     </div>
   );
 }
-
-const DIFFICULTIES: { key: Difficulty; label: string; blurb: string }[] = [
-  { key: "easy", label: "Easy", blurb: "Everyday jobs almost everyone recognizes." },
-  { key: "medium", label: "Medium", blurb: "Takes a few follow-up questions to pin down." },
-  { key: "hard", label: "Hard", blurb: "Specialist roles — sharper questions needed." },
-];
-
-const SAMPLE_EXCHANGE: { question: string; answer: Answer }[] = [
-  { question: "Do you work outdoors?", answer: "no" },
-  { question: "Is it a creative job?", answer: "yes" },
-  { question: "Would I need a degree?", answer: "sometimes" },
-];
 
 function LoadingScreen({ label }: { label: string }) {
   return (
@@ -385,80 +658,6 @@ function LoadingScreen({ label }: { label: string }) {
         <span className="thinking-dot w-2 h-2 rounded-full bg-manila inline-block" />
         <span className="thinking-dot w-2 h-2 rounded-full bg-manila inline-block" />
       </span>
-    </main>
-  );
-}
-
-function StartScreen({
-  onStart,
-  error,
-}: {
-  onStart: (difficulty?: Difficulty) => void;
-  error: string | null;
-}) {
-  return (
-    <main className="vignette min-h-screen flex items-center justify-center px-6 py-12">
-      <div className="enter w-full max-w-4xl grid md:grid-cols-2 gap-10 md:gap-16 items-center">
-        <div>
-          <Logo size={48} />
-          <h1 className="font-case text-4xl md:text-5xl leading-tight mb-4 mt-3">Professionle</h1>
-          <p className="text-paperDim text-lg leading-relaxed mb-8 max-w-sm">
-            Guess the job. Yes-or-no questions only. 10 nos and you're out, hints drop along the way.
-          </p>
-
-          <div className="space-y-2 mb-4">
-            {DIFFICULTIES.map((d) => (
-              <button
-                key={d.key}
-                onClick={() => onStart(d.key)}
-                className="w-full text-left border border-wire px-4 py-3 rounded hover:border-manila hover:bg-panelLight transition-colors group"
-              >
-                <div className="flex items-baseline justify-between">
-                  <span className="font-case text-base group-hover:text-manila transition-colors">
-                    {d.label}
-                  </span>
-                  <span className="text-paperDim text-xs">{d.blurb}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => onStart()}
-            className="text-paperDim text-sm underline decoration-wire underline-offset-4 hover:text-manila hover:decoration-manila transition-colors"
-          >
-            Or pick a random difficulty
-          </button>
-
-          <div className="mt-3">
-            <Link
-              href="/special-cases"
-              className="text-paperDim text-sm underline decoration-wire underline-offset-4 hover:text-manila hover:decoration-manila transition-colors"
-            >
-              Special Cases <span className="font-sans">→</span>
-            </Link>
-          </div>
-
-          {error && <p className="text-alert text-sm mt-4">{error}</p>}
-        </div>
-
-        <div className="bg-panel border border-wire rounded-lg p-6 space-y-4">
-          <p className="font-case text-xs tracking-wide text-paperDim mb-2">A ROUND MIGHT LOOK LIKE THIS</p>
-          {SAMPLE_EXCHANGE.map((row, i) => (
-            <div key={i} className="flex items-start justify-between gap-4">
-              <p className="text-paper/80 italic flex-1">&ldquo;{row.question}&rdquo;</p>
-              <span
-                className={`stamp shrink-0 font-case text-xs border-2 px-2 py-1 ${ANSWER_COLOR[row.answer]}`}
-              >
-                {ANSWER_LABEL[row.answer]}
-              </span>
-            </div>
-          ))}
-          <p className="text-paperDim/70 text-sm pt-2 border-t border-wire">
-            Ten wrong answers and the round ends. Two hints unlock automatically along the way.
-          </p>
-        </div>
-      </div>
     </main>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { TallyCounter } from "@/components/TallyCounter";
-import { CREATOR_INFO } from "./creatorInfo";
+import { CreatorProfile } from "@/components/CreatorProfile";
 import type { Answer } from "@/types";
 
 type TranscriptEntry =
@@ -25,8 +25,6 @@ const ANSWER_COLOR: Record<Answer, string> = {
   not_really: "text-alert/80 border-alert/80",
   irrelevant: "text-paperDim border-paperDim",
 };
-
-const MAX_NOS = 10;
 
 type Status = "idle" | "starting" | "active" | "won" | "lost" | "skipped";
 
@@ -146,9 +144,9 @@ export function MeetTheCreatorMode() {
           <div className="mt-4">
             <button
               onClick={() => setStatus("skipped")}
-              className="font-case text-xs text-paperDim underline decoration-wire underline-offset-4 hover:text-manila hover:decoration-manila transition-colors"
+              className="font-case text-xs tracking-wide bg-manila text-ink px-5 py-3 hover:bg-paper transition-colors"
             >
-              Not in the mood to play — just show me
+              SKIP THE GAME, SHOW ME
             </button>
           </div>
           {error && <p className="text-alert text-sm mt-4">{error}</p>}
@@ -274,53 +272,8 @@ function CreatorRevealCard({ eyebrow, intro }: { eyebrow: string; intro: React.R
         {intro}
       </div>
 
-      <div className="border-t border-wire pt-4">
-        <p className="font-case text-lg text-paper">{CREATOR_INFO.name}</p>
-        <p className="text-paperDim text-sm mb-3">{CREATOR_INFO.tagline}</p>
-        <p className="text-paper/90 mb-4">{CREATOR_INFO.summary}</p>
-
-        <p className="font-case text-xs tracking-wide text-paperDim mb-2">HIGHLIGHTS</p>
-        <ul className="space-y-1.5 mb-4">
-          {CREATOR_INFO.highlights.map((h, i) => (
-            <li key={i} className="text-paper/80 text-sm flex gap-2">
-              <span className="text-manila">—</span>
-              <span>{h}</span>
-            </li>
-          ))}
-        </ul>
-
-        <p className="font-case text-xs tracking-wide text-paperDim mb-1">EDUCATION</p>
-        <p className="text-paper/80 text-sm mb-4">{CREATOR_INFO.education}</p>
-
-        <p className="font-case text-xs tracking-wide text-paperDim mb-2">TOP SKILLS</p>
-        <div className="flex flex-wrap gap-2 mb-4">
-          {CREATOR_INFO.topSkills.map((skill) => (
-            <span
-              key={skill}
-              className="text-xs border border-wire rounded-full px-3 py-1 text-paperDim"
-            >
-              {skill}
-            </span>
-          ))}
-        </div>
-
-        {CREATOR_INFO.links.some((l) => l.url) && (
-          <div className="flex flex-wrap gap-3 pt-2 border-t border-wire">
-            {CREATOR_INFO.links
-              .filter((l) => l.url)
-              .map((l) => (
-                <a
-                  key={l.label}
-                  href={l.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-case text-xs text-manila underline underline-offset-4 hover:text-manilaDeep"
-                >
-                  {l.label} →
-                </a>
-              ))}
-          </div>
-        )}
+      <div className="border-t border-wire pt-5">
+        <CreatorProfile />
       </div>
     </div>
   );

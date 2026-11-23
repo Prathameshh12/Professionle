@@ -49,12 +49,3 @@ export interface AskResult {
   revealed_title?: string; // present when status becomes lost/won
 }
 
-export interface QuestionLogEntry {
-  id: string;
-  session_id: string;
-  question_text: string;
-  resolved_answer: Answer;
-  was_guess_attempt: boolean;
-  source: ResolutionSource;
-  created_at: string;
-}
