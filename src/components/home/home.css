@@ -1067,6 +1067,16 @@
   outline-offset: 3px;
 }
 
+/* ---------- laptop screens: suspect stands beside the title, hint stays under him ---------- */
+@media (min-width: 1000px) {
+  .hp-suspect {
+    position: absolute;
+    left: calc(50% + 330px);
+    top: 84px;
+    margin: 0;
+  }
+}
+
 /* ---------- wide screens: suspect stands beside the title ---------- */
 @media (min-width: 1300px) {
   .hp-suspect {
